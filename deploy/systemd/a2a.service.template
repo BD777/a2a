@@ -1,0 +1,16 @@
+[Unit]
+Description=A2A scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__A2A_HOME__
+EnvironmentFile=-__A2A_HOME__/deploy/a2a.env
+Environment=A2A_CONFIG_DIR=__A2A_HOME__/config
+ExecStart=__A2A_NODE__ __A2A_HOME__/src/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

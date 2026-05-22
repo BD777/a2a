@@ -1,0 +1,20 @@
+[
+  {
+    "larkAppId": "cli_xxx_claude_agent",
+    "larkAppSecret": "REPLACE_WITH_CLAUDE_AGENT_SECRET",
+    "name": "Claude",
+    "cliId": "claude-code",
+    "runtime": "claude",
+    "cardColor": "blue",
+    "workingDir": "./workspaces/claude"
+  },
+  {
+    "larkAppId": "cli_xxx_codex_agent",
+    "larkAppSecret": "REPLACE_WITH_CODEX_AGENT_SECRET",
+    "name": "Codex",
+    "cliId": "codex",
+    "runtime": "codex",
+    "cardColor": "turquoise",
+    "workingDir": "./workspaces/codex"
+  }
+]

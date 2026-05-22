@@ -1,0 +1,41 @@
+# Run from this directory: `docker compose up -d --build`.
+# The build context is the repo root so the image can copy src/, scripts/, workspaces/.
+
+services:
+  a2a:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      args:
+        CODEX_CLI_VERSION: "0.133.0"
+        CLAUDE_CODE_VERSION: "2.1.144"
+    image: a2a:local
+    container_name: a2a
+    restart: unless-stopped
+    # Outbound WebSocket to wss://oapi.feishu.cn — no inbound ports needed for Feishu.
+    # Uncomment to expose the admin HTTP server to the host (still no auth — bind carefully):
+    # ports:
+    #   - "127.0.0.1:39876:39876"
+    environment:
+      A2A_HOME: /root/.a2a
+      # Override anything from deploy/a2a.env.example here, or via env_file:
+      # A2A_LOG_FORMAT: json
+      # A2A_LOG_LEVEL: info
+    # Uncomment after `cp ../a2a.env.example ../a2a.env` and edit it:
+    # env_file:
+    #   - ../a2a.env
+    volumes:
+      # Real config (agents.json, chats.json, profiles/*.env, optional messages.json).
+      # Read-only because the wizard is run on the host, not in the container.
+      - ../../config:/app/config:ro
+      # Persistent state: sessions, sections, dedup ring, log mirror.
+      - a2a-state:/root/.a2a
+      # Codex provider auth/config is required for Codex turns. Either reuse
+      # the host's already-working config:
+      # - ${HOME}/.codex:/root/.codex:ro
+      # Or persist container-local Codex auth after logging in inside the container:
+      # - a2a-codex:/root/.codex
+
+volumes:
+  a2a-state:
+  # a2a-codex:

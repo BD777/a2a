@@ -1,0 +1,20 @@
+{
+  "anthropic": {
+    "baseUrl": "https://api.anthropic.com",
+    "primaryModel": "",
+    "opusModel": "",
+    "sonnetModel": "",
+    "haikuModel": "",
+    "compactWindow": "300000"
+  },
+  "agents": {
+    "claude": {
+      "displayName": "claude",
+      "workingDirRel": "workspaces/claude"
+    },
+    "codex": {
+      "displayName": "codex",
+      "workingDirRel": "workspaces/codex"
+    }
+  }
+}

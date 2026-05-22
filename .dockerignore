@@ -1,0 +1,18 @@
+.git
+.github
+node_modules
+npm-debug.log*
+*.log
+.DS_Store
+
+# Real local credentials/config. The compose file mounts config/ explicitly.
+config/agents.json
+config/chats.json
+config/profiles/*.env
+!config/profiles/*.example
+deploy/a2a.env
+
+# Runtime state/backups that should never enter the build context.
+.a2a
+workspaces/**/.codex
+workspaces/**/.claude

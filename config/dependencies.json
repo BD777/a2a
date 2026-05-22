@@ -1,0 +1,127 @@
+{
+  "runtime": {
+    "node": ">=20",
+    "npm": ">=9"
+  },
+  "npm": [
+    {
+      "name": "@anthropic-ai/claude-agent-sdk",
+      "version": "0.3.148",
+      "why": "Claude Agent SDK adapter used by src/runtime/claude-agent-runtime.js"
+    },
+    {
+      "name": "@larksuiteoapi/node-sdk",
+      "version": "1.65.0",
+      "why": "Feishu/Lark REST APIs and Long Connection WebSocket receiver"
+    },
+    {
+      "name": "@openai/codex-sdk",
+      "version": "0.133.0",
+      "why": "Codex SDK adapter used by src/runtime/codex-sdk-runtime.js"
+    },
+    {
+      "name": "@openai/codex",
+      "version": "0.133.0",
+      "why": "Codex CLI binary used by the Codex SDK runtime",
+      "providedBy": "@openai/codex-sdk",
+      "binary": "node_modules/.bin/codex"
+    },
+    {
+      "name": "axios",
+      "version": "1.16.1",
+      "why": "Transitive dependency of @larksuiteoapi/node-sdk; pinned by npm overrides for audit hygiene",
+      "providedBy": "@larksuiteoapi/node-sdk"
+    }
+  ],
+  "cli": [
+    {
+      "name": "claude",
+      "required": true,
+      "package": "@anthropic-ai/claude-code",
+      "testedVersion": "2.1.144",
+      "install": "npm install -g @anthropic-ai/claude-code@2.1.144",
+      "pathEnv": "A2A_CLAUDE_PATH",
+      "why": "Claude Agent SDK spawns the Claude Code CLI for turns"
+    },
+    {
+      "name": "codex",
+      "required": true,
+      "package": "@openai/codex",
+      "testedVersion": "0.133.0",
+      "install": "Installed by npm ci as node_modules/.bin/codex through @openai/codex-sdk",
+      "pathEnv": "A2A_CODEX_PATH",
+      "why": "Codex SDK starts/resumes Codex CLI-backed threads"
+    }
+  ],
+  "optionalCommands": [
+    {
+      "name": "curl",
+      "why": "scripts/a2a-admin.sh convenience calls"
+    },
+    {
+      "name": "jq",
+      "why": "scripts/a2a-admin.sh pretty output"
+    },
+    {
+      "name": "systemctl",
+      "why": "systemd user-service deployment"
+    },
+    {
+      "name": "docker",
+      "why": "Docker deployment option"
+    },
+    {
+      "name": "pm2",
+      "why": "pm2 deployment option"
+    }
+  ],
+  "externalServices": [
+    {
+      "name": "Feishu/Lark Open Platform REST",
+      "required": true,
+      "hosts": ["open.feishu.cn", "open.larksuite.com"],
+      "configuredBy": ["A2A_FEISHU_DOMAIN"],
+      "why": "Validate app credentials and call IM/CardKit/Contact APIs"
+    },
+    {
+      "name": "Feishu/Lark Long Connection WebSocket",
+      "required": true,
+      "hosts": ["oapi.feishu.cn", "lark-event-ws.feishu.cn"],
+      "why": "Receive im.message.receive_v1 events"
+    },
+    {
+      "name": "Anthropic-compatible API endpoint",
+      "required": true,
+      "configuredBy": ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"],
+      "why": "Claude turns"
+    },
+    {
+      "name": "Codex/OpenAI provider endpoint",
+      "required": true,
+      "configuredBy": ["~/.codex/config.toml", "Codex CLI auth/config"],
+      "why": "Codex turns"
+    }
+  ],
+  "feishu": {
+    "apps": 2,
+    "event": "im.message.receive_v1",
+    "requiredScopes": [
+      "im:message",
+      "im:message.group_msg or im:message:send_as_bot"
+    ],
+    "conditionalScopes": [
+      {
+        "scope": "contact:user.base:readonly",
+        "when": "Optional sender display-name lookup"
+      },
+      {
+        "scope": "cardkit:card:write",
+        "when": "A2A_FEISHU_STREAMING=true"
+      },
+      {
+        "scope": "im:message:recall",
+        "when": "Optional cleanup of A2A's own empty/overflow/probe messages"
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "lifecycle.start": "A2A 已启动 ({sessionId})。",
+  "lifecycle.stop": "A2A 已停止 ({sessionId})。",
+  "lifecycle.stopVia": "A2A 已停止 ({sessionId})，原因：{reason}。",
+  "lifecycle.statusNoSession": "本话题中没有正在运行的 A2A 会话。",
+  "lifecycle.status": "A2A {sessionId}：状态 {status}，等待 {waiting}，已完成轮次={turns}，距上次用户消息已 {turnsSinceUser}/{maxTurnsSinceUser} 轮。",
+  "lifecycle.sessionTimeout": "A2A 在 {seconds} 秒会话超时后停止。",
+  "lifecycle.failed": "A2A 已暂停，因为 {cliId} 失败：{error}",
+  "lifecycle.maxTurns": "A2A 在自上次用户消息以来已运行 {maxTurnsSinceUser} 轮后停止。"
+}

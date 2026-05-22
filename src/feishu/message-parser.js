@@ -1,0 +1,124 @@
+import { formatMessageLine, formatTime } from '../protocol/format.js';
+
+export function eventRoot(message) {
+  return message.root_id || message.message_id;
+}
+
+export function isBotSender(sender) {
+  const type = sender?.sender_type;
+  return type === 'app' || type === 'bot';
+}
+
+export function senderId(sender) {
+  const id = sender?.sender_id || {};
+  return id.open_id || id.user_id || id.union_id || id.app_id || id.id || '';
+}
+
+export function collectCardText(value, out = []) {
+  if (!value || typeof value !== 'object') return out;
+  if (Array.isArray(value)) {
+    for (const item of value) collectCardText(item, out);
+    return out;
+  }
+  if (['markdown', 'md', 'plain_text', 'text'].includes(value.tag)) {
+    if (typeof value.content === 'string') out.push(value.content);
+    if (typeof value.text === 'string') out.push(value.text);
+  }
+  for (const key of ['body', 'elements', 'actions', 'header', 'title']) {
+    collectCardText(value[key], out);
+  }
+  return out;
+}
+
+export function extractEventText(message) {
+  try {
+    const content = JSON.parse(message.content || '{}');
+    if (message.message_type === 'text') {
+      let text = content.text || '';
+      for (const mention of message.mentions || []) {
+        if (mention.key && mention.name) text = text.replaceAll(mention.key, `@${mention.name}`);
+      }
+      return text.trim();
+    }
+    if (message.message_type === 'post') {
+      const root = content.zh_cn || content.en_us || content;
+      const blocks = Array.isArray(root.content) ? root.content : [];
+      return blocks
+        .map((block) => (Array.isArray(block) ? block : [block])
+          .map((node) => {
+            if (node.tag === 'text' || node.tag === 'md') return node.text || '';
+            if (node.tag === 'a') {
+              const text = node.text || '';
+              const href = node.href || '';
+              if (text && href && text !== href) return `[${text}](${href})`;
+              return text || href || '';
+            }
+            if (node.tag === 'at') return `@${node.user_name || 'unknown'}`;
+            if (node.tag === 'img') return '[image]';
+            if (node.tag === 'file') return `[file:${node.file_name || node.file_key || 'unknown'}]`;
+            if (node.tag === 'emotion') return node.emoji_type ? `:${node.emoji_type}:` : '';
+            if (node.tag === 'code_inline') return node.text ? `\`${node.text}\`` : '';
+            return '';
+          })
+          .join(''))
+        .join('\n')
+        .trim();
+    }
+    if (message.message_type === 'interactive') {
+      const unwrapped = unwrapUserDslContent(message.content);
+      const parsed = unwrapped ? JSON.parse(unwrapped) : content;
+      const title = parsed.header?.title?.content || parsed.title || '';
+      const cardText = collectCardText(parsed).filter(Boolean).join('\n').trim();
+      return [title, cardText].filter(Boolean).join('\n').trim();
+    }
+    if (message.message_type === 'image') return '[image]';
+    if (message.message_type === 'file') return `[file:${content.file_name || content.file_key || 'unknown'}]`;
+  } catch {
+    // Fall through to raw content.
+  }
+  return String(message.content || '').trim();
+}
+
+export function unwrapUserDslContent(rawContent) {
+  try {
+    const outer = JSON.parse(rawContent || '{}');
+    if (typeof outer?.user_dsl !== 'string') return null;
+    const inner = JSON.parse(outer.user_dsl);
+    if (!inner || typeof inner !== 'object') return null;
+    if (!inner.body && !inner.elements && !inner.header) return null;
+    return JSON.stringify(inner);
+  } catch {
+    return null;
+  }
+}
+
+export function parseApiMessage(message) {
+  const msgType = message.msg_type || message.message_type || 'text';
+  const rawContent = message.body?.content || message.content || '';
+  return {
+    messageId: message.message_id,
+    rootId: message.root_id || '',
+    threadId: message.thread_id || '',
+    msgType,
+    content: extractEventText({
+      message_type: msgType,
+      content: rawContent,
+      mentions: message.mentions || [],
+    }),
+    createTime: Number(message.create_time || 0) || Date.now(),
+    sender: message.sender || {},
+  };
+}
+
+export function formatTopicMessages(messages, { timeZone, messageCharLimit, senderLabel }) {
+  return messages
+    .filter((message) => message.content)
+    .map((message) => formatMessageLine({
+      time: formatTime(message.createTime, timeZone),
+      sender: senderLabel(message),
+      msgType: message.msgType,
+      messageId: message.messageId,
+      text: message.content.slice(0, messageCharLimit),
+    }))
+    .join('\n\n');
+}

@@ -1,0 +1,36 @@
+{
+  "name": "a2a",
+  "version": "0.1.0",
+  "description": "Feishu (Lark) topic scheduler that runs Claude Agent SDK and Codex SDK in turn-based discussion over an IM thread.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/BD777/a2a",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BD777/a2a.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BD777/a2a/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "open-source:check": "node scripts/check-open-source.mjs",
+    "deps:check": "node scripts/doctor.mjs",
+    "check": "find src scripts -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
+    "test": "node --test test/*.test.js",
+    "ci": "npm run check && npm test && npm run open-source:check && npm audit --omit=dev",
+    "prepack": "npm run open-source:check"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.148",
+    "@larksuiteoapi/node-sdk": "^1.65.0",
+    "@openai/codex-sdk": "^0.133.0"
+  },
+  "overrides": {
+    "axios": "^1.16.1"
+  }
+}
