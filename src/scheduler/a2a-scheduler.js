@@ -189,8 +189,13 @@ export class A2AScheduler {
     const turnStartedAt = Date.now();
     let result;
     try {
-      const beginAttempt = () => this.publisher.beginAgentTurn?.(session, cliId, round);
-      result = await this.runtime.runTurn(session, cliId, prompt, { beginAttempt, attachments });
+      if (isNoopTurn(turnInput, attachments)) {
+        this.logger.info(`agent turn skipped session=${session.id} cli=${cliId} round=${round} reason=no-new-input`);
+        result = { content: '', provider: 'scheduler-noop', threadId: state.threadId || '', usage: null };
+      } else {
+        const beginAttempt = () => this.publisher.beginAgentTurn?.(session, cliId, round);
+        result = await this.runtime.runTurn(session, cliId, prompt, { beginAttempt, attachments });
+      }
     } catch (err) {
       this.logger.error(`agent turn failed session=${session.id} cli=${cliId}:`, err);
       session.waitingFor = null;
@@ -282,4 +287,11 @@ function collectTurnAttachments({ includeFullContext, initialAttachments, userUp
     result.push(item);
   }
   return result;
+}
+
+function isNoopTurn(turnInput, attachments) {
+  return !turnInput.includeFullContext
+    && (!turnInput.transcript || turnInput.transcript.length === 0)
+    && (!turnInput.userUpdates || turnInput.userUpdates.length === 0)
+    && (!attachments || attachments.length === 0);
 }

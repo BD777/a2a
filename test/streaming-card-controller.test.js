@@ -129,6 +129,38 @@ test('finalize deletes eager empty card instead of posting quiet turn', async ()
   assert.equal(result.suppressed, true);
 });
 
+test('suppresses streamed internal prompt echoes before they reach the card', async () => {
+  const { ctrl, clients } = makeController();
+  await ctrl.start();
+  ctrl.appendText('Human:');
+  await tick(80);
+  assert.equal(clients.contentCalls.length, 0);
+
+  ctrl.appendText(' New user messages since your last turn:\n<new_user_messages>\nprivate user text');
+  await tick(80);
+  assert.equal(clients.contentCalls.length, 0);
+
+  const result = await ctrl.finalize({
+    content: 'Human: New user messages since your last turn:\n<new_user_messages>\nprivate user text',
+  });
+  assert.equal(clients.replaceCalls.length, 0);
+  assert.deepEqual(clients.deleteMessageCalls, [{ appId: 'app1', messageId: 'msg1' }]);
+  assert.equal(result.suppressed, true);
+});
+
+test('does not suppress ordinary text that happens to start with Human', async () => {
+  const { ctrl, clients } = makeController();
+  ctrl.appendText('Human:');
+  await tick(80);
+  assert.equal(clients.contentCalls.length, 0);
+
+  ctrl.appendText(' I agree with the plan.');
+  await tick(80);
+  assert.equal(clients.contentCalls.length, 1);
+  assert.equal(clients.contentCalls[0].content, 'Human: I agree with the plan.');
+  await ctrl.finalize({ content: 'Human: I agree with the plan.' });
+});
+
 test('fail paints red header and includes partial body', async () => {
   const { ctrl, clients } = makeController();
   ctrl.appendText('half-written');

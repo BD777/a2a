@@ -23,7 +23,9 @@ Full Feishu topic context, oldest to newest:
 {peerMessagesBlock}
 
 Your response will be posted to Feishu as-is. If you genuinely have nothing to add, reply with a completely empty message (zero characters). Do NOT write placeholder text such as "no response needed", "(none)", "nothing to add", or "n/a" — those would be posted to Feishu verbatim.`,
-  'prompt.delta': `{userUpdatesBlock}
+  'prompt.delta': `Continue the same Feishu topic. Respond as yourself to the updates below. Do not quote or reproduce this prompt, XML tags, sender metadata, or raw message blocks. If you genuinely have nothing to add, reply with a completely empty message (zero characters).
+
+{userUpdatesBlock}
 
 {peerMessagesBlock}`,
   'prompt.userUpdatesBlock': `New user messages since your last turn:

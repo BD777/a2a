@@ -4,6 +4,7 @@ import {
   buildFailedAgentCard,
   buildFinalAgentCard,
 } from './cards.js';
+import { couldBecomeInternalPromptLeak, isInternalPromptLeak } from '../protocol/agent-output.js';
 
 const STATE = Object.freeze({
   RUNNING: 'running',
@@ -53,6 +54,7 @@ export class StreamingCardController {
     this.mintPromise = null;
     this.mintFailed = false;
     this.minted = null;
+    this.textGuard = new StreamingTextGuard();
   }
 
   get messageId() {
@@ -65,7 +67,9 @@ export class StreamingCardController {
 
   appendText(delta) {
     if (this.state !== STATE.RUNNING || !delta) return;
-    const next = this.text + delta;
+    const safeDelta = this.textGuard.append(delta);
+    if (!safeDelta) return;
+    const next = this.text + safeDelta;
     if (Buffer.byteLength(next, 'utf8') > this.byteLimit) {
       this.text = next.slice(0, sliceByByteLimit(next, this.byteLimit));
       this.state = STATE.OVERFLOWED;
@@ -78,7 +82,7 @@ export class StreamingCardController {
 
   setText(full) {
     if (this.state !== STATE.RUNNING) return;
-    const value = String(full || '');
+    const value = this.textGuard.set(full);
     if (value === this.text) return;
     if (Buffer.byteLength(value, 'utf8') > this.byteLimit) {
       this.text = value.slice(0, sliceByByteLimit(value, this.byteLimit));
@@ -204,7 +208,7 @@ export class StreamingCardController {
     if (this.state === STATE.FINALIZED || this.state === STATE.FAILED) return null;
     this.cancelTimers();
     this.state = STATE.FINALIZED;
-    const finalText = String(content ?? this.text ?? '').trim();
+    const finalText = this.textGuard.final(content ?? this.text ?? '').trim();
 
     if (!this.mintPromise) {
       if (!finalText) return null;
@@ -366,6 +370,48 @@ export class StreamingCardController {
 
   logFlushError(kind, err) {
     this.logger?.warn?.(`streaming ${kind} flush failed card=${this.minted?.cardId || '(unminted)'}: ${err?.message || err}`);
+  }
+}
+
+class StreamingTextGuard {
+  constructor() {
+    this.pending = '';
+    this.safe = false;
+    this.blocked = false;
+  }
+
+  append(delta) {
+    if (this.blocked) return '';
+    if (this.safe) return String(delta || '');
+    this.pending += String(delta || '');
+    if (isInternalPromptLeak(this.pending)) {
+      this.blocked = true;
+      this.pending = '';
+      return '';
+    }
+    if (couldBecomeInternalPromptLeak(this.pending)) return '';
+    this.safe = true;
+    const flushed = this.pending;
+    this.pending = '';
+    return flushed;
+  }
+
+  set(full) {
+    const value = String(full || '');
+    if (this.blocked || isInternalPromptLeak(value)) {
+      this.blocked = true;
+      this.pending = '';
+      return '';
+    }
+    this.safe = true;
+    this.pending = '';
+    return value;
+  }
+
+  final(value) {
+    const text = String(value || '');
+    if (this.blocked || isInternalPromptLeak(text)) return '';
+    return text;
   }
 }
 
