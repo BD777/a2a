@@ -88,6 +88,7 @@ export class ThreadContextStore {
       rootMessageId: record.rootMessageId,
       triggerMode: record.triggerMode || 'auto',
       initialContext,
+      initialAttachments: record.initialAttachments || [],
       userUpdates: [messageRecordForPrompt(record)],
       transcript: [],
       agentState: inheritedAgentState,
@@ -160,6 +161,7 @@ function messageRecordForPrompt(record) {
     sender: record.senderLabel,
     msgType: record.msgType || 'text',
     text: record.text || '',
+    attachments: Array.isArray(record.attachments) ? record.attachments : [],
     at: record.timeMs || Date.now(),
   };
 }

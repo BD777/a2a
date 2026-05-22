@@ -205,7 +205,7 @@ For ${C.bold}each${C.reset} app:
   3. Subscribe the event ${C.bold}im.message.receive_v1${C.reset} ("接收消息 v2.0").
   4. Grant the following scopes (开通权限) and ${C.bold}publish a new version${C.reset} so they go live:
 
-       ${C.bold}im:message${C.reset}                    — read incoming messages
+       ${C.bold}im:message${C.reset}                    — read incoming messages and download image resources
        ${C.bold}im:message.group_msg${C.reset} / ${C.bold}im:message:send_as_bot${C.reset}
                                      — send threaded bot replies
        ${C.bold}contact:user.base:readonly${C.reset}    — resolve sender display names (optional;

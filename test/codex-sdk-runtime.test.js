@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  buildCodexInput,
   enrichCodexError,
   readLatestCodexSseDiagnostic,
 } from '../src/runtime/codex-sdk-runtime.js';
@@ -86,3 +87,17 @@ test('enrichCodexError marks transient backend diagnostics as retryable', () => 
   });
 });
 
+test('buildCodexInput adds local_image blocks for downloaded images', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'a2a-codex-image-'));
+  const imagePath = join(dir, 'image.png');
+  writeFileSync(imagePath, Buffer.from('89504e470d0a1a0a0000000d', 'hex'));
+  try {
+    const input = buildCodexInput('look', [{ kind: 'image', localPath: imagePath, mimeType: 'image/png' }]);
+    assert.deepEqual(input, [
+      { type: 'text', text: 'look' },
+      { type: 'local_image', path: imagePath },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

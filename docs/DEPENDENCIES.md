@@ -20,7 +20,7 @@ These are installed from `package-lock.json` by `npm ci`.
 | Package | Expected version | Why |
 |---|---:|---|
 | `@anthropic-ai/claude-agent-sdk` | `0.3.148` | Claude runtime adapter. |
-| `@larksuiteoapi/node-sdk` | `1.65.0` | Feishu/Lark REST APIs and Long Connection WebSocket receiver. |
+| `@larksuiteoapi/node-sdk` | `1.65.0` | Feishu/Lark REST APIs, message-resource downloads, and Long Connection WebSocket receiver. |
 | `@openai/codex-sdk` | `0.133.0` | Codex runtime adapter. |
 | `@openai/codex` | `0.133.0` | Codex CLI binary used by the SDK; installed transitively by `@openai/codex-sdk` and exposed as `node_modules/.bin/codex`. |
 | `axios` | `1.16.1` | Transitive dependency of `@larksuiteoapi/node-sdk`; pinned through `overrides` for audit hygiene. |
@@ -56,7 +56,7 @@ than the tested version but will not block startup.
 
 | Service | Hosts / config | Why |
 |---|---|---|
-| Feishu/Lark Open Platform REST | `open.feishu.cn` or `open.larksuite.com`; select with `A2A_FEISHU_DOMAIN=feishu` / `lark` / custom URL | App credential validation and IM/CardKit/Contact API calls. |
+| Feishu/Lark Open Platform REST | `open.feishu.cn` or `open.larksuite.com`; select with `A2A_FEISHU_DOMAIN=feishu` / `lark` / custom URL | App credential validation, IM message/resource, CardKit, and Contact API calls. |
 | Feishu/Lark Long Connection WebSocket | Feishu/Lark event WebSocket endpoints such as `oapi.feishu.cn` / `lark-event-ws.feishu.cn` | Receive `im.message.receive_v1` events. |
 | Anthropic-compatible endpoint | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` | Claude turns. |
 | Codex/OpenAI provider endpoint | Codex CLI auth/config, usually under `~/.codex/` | Codex turns. |
@@ -73,7 +73,8 @@ A2A requires two custom Feishu/Lark apps, one per agent. For each app:
 
 Required scopes:
 
-- `im:message`
+- `im:message` for reading messages, resolving thread IDs, and downloading
+  message image resources.
 - `im:message.group_msg` / `im:message:send_as_bot`
 
 Conditional scopes:

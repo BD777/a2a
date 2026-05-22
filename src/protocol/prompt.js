@@ -1,4 +1,5 @@
 import { formatMessageLine, formatTime } from './format.js';
+import { formatContentWithAttachments } from './attachments.js';
 
 export function buildAgentPrompt({ session, cliId, peerCliIds, round, turnInput, timeZone, messages }) {
   const userUpdatesBlock = messages.render('prompt.userUpdatesBlock', {
@@ -36,6 +37,6 @@ function formatPromptRecord(record, timeZone) {
     sender: record.sender,
     msgType: record.msgType,
     messageId: record.messageId,
-    text: record.text,
+    text: formatContentWithAttachments(record.text, record.attachments),
   });
 }

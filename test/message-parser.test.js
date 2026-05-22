@@ -5,6 +5,7 @@ import {
   isBotSender,
   senderId,
   extractEventText,
+  extractEventParts,
   collectCardText,
 } from '../src/feishu/message-parser.js';
 
@@ -57,6 +58,33 @@ test('extractEventText handles image / file types', () => {
     extractEventText({ message_type: 'file', content: JSON.stringify({ file_name: 'a.pdf' }) }),
     '[file:a.pdf]',
   );
+});
+
+test('extractEventParts extracts image resources from image and post messages', () => {
+  const direct = extractEventParts({
+    message_id: 'om_1',
+    message_type: 'image',
+    content: JSON.stringify({ image_key: 'img_v2_123' }),
+  });
+  assert.equal(direct.text, '[image]');
+  assert.deepEqual(direct.attachments, [{
+    kind: 'image',
+    resourceType: 'image',
+    fileKey: 'img_v2_123',
+    messageId: 'om_1',
+    source: 'message',
+  }]);
+
+  const post = extractEventParts({
+    message_id: 'om_2',
+    message_type: 'post',
+    content: JSON.stringify({
+      zh_cn: { content: [[{ tag: 'text', text: 'see ' }, { tag: 'img', image_key: 'img_v2_456' }]] },
+    }),
+  });
+  assert.equal(post.text, 'see [image]');
+  assert.equal(post.attachments[0].fileKey, 'img_v2_456');
+  assert.equal(post.attachments[0].source, 'post');
 });
 
 test('collectCardText walks nested elements', () => {

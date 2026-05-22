@@ -104,6 +104,7 @@ export function loadA2aConfig() {
   const stateDir = process.env.A2A_STATE_DIR || join(appHome, 'state');
   const logPath = process.env.A2A_LOG_PATH || join(appHome, 'logs', 'a2a.log');
   const logLevel = process.env.A2A_LOG_LEVEL || (process.env.DEBUG ? 'debug' : 'info');
+  const attachmentsDir = process.env.A2A_ATTACHMENTS_DIR || join(appHome, 'attachments');
   const claudePath = process.env.A2A_CLAUDE_PATH
     || firstExecutable([
       join(homedir(), '.local', 'bin', 'claude'),
@@ -145,6 +146,10 @@ export function loadA2aConfig() {
     stateDir,
     logPath,
     logLevel,
+    attachmentsDir,
+    attachmentsEnabled: boolEnv('A2A_ATTACHMENTS_ENABLED', true),
+    attachmentImageLimit: numberEnv('A2A_ATTACHMENT_IMAGE_LIMIT', 12),
+    attachmentMaxBytes: numberEnv('A2A_ATTACHMENT_MAX_BYTES', 25 * 1024 * 1024),
     topicContextLimit: numberEnv('A2A_THREAD_CONTEXT_LIMIT', 500),
     messageCharLimit: numberEnv('A2A_THREAD_MESSAGE_CHAR_LIMIT', 4000),
     feishuChunkLimit: numberEnv('A2A_FEISHU_CHUNK_LIMIT', 3500),

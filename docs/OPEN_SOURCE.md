@@ -30,7 +30,8 @@ This validates bot send permission and attempts to delete the probe reply.
 - Commit only `.example` config files.
 - Keep real `config/agents.json`, `config/chats.json`,
   `config/profiles/*.env`, `deploy/a2a.env`, rendered systemd units, logs, and
-  workspace scratch files out of Git.
+  workspace scratch files out of Git. Runtime image caches under
+  `$A2A_HOME/attachments` are local data and must not be published.
 - Run `npm run open-source:check` before committing.
 - Run `npm run open-source:check -- --all-local` before zipping or copying the
   full working tree; it should flag real local credentials if the repo is

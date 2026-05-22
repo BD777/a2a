@@ -26,7 +26,8 @@ function makeStore() {
         rootMessageId: record.rootMessageId,
         triggerMode: record.triggerMode || 'auto',
         initialContext,
-        userUpdates: [{ messageId: record.messageId, sender: record.senderLabel, text: record.text, at: record.timeMs }],
+        initialAttachments: record.initialAttachments || [],
+        userUpdates: [{ messageId: record.messageId, sender: record.senderLabel, text: record.text, attachments: record.attachments || [], at: record.timeMs }],
         transcript: [],
         agentState: {},
         round: 1,
@@ -42,7 +43,7 @@ function makeStore() {
     persistSession(s) { s.updatedAt = Date.now(); sessions.set(s.rootMessageId, s); },
     addUserUpdate(s, r) {
       if (s.userUpdates.some((item) => item.messageId === r.messageId)) return false;
-      s.userUpdates.push({ messageId: r.messageId, sender: r.senderLabel, text: r.text, at: r.timeMs });
+      s.userUpdates.push({ messageId: r.messageId, sender: r.senderLabel, text: r.text, attachments: r.attachments || [], at: r.timeMs });
       s.turnsSinceUser = 0;
       s.quietStreak = 0;
       return true;
@@ -66,8 +67,8 @@ function makeRuntime(turnHandler) {
     peerCliId(cliId) {
       return cliId === 'claude-code' ? 'codex' : 'claude-code';
     },
-    async runTurn(session, cliId, prompt) {
-      return turnHandler({ session, cliId, prompt });
+    async runTurn(session, cliId, prompt, options) {
+      return turnHandler({ session, cliId, prompt, options });
     },
   };
 }
@@ -141,6 +142,39 @@ test('auto-start triggers claude turn first, then alternates', async () => {
   // first 2 had content, last 2 were empty → 2 agent publishes
   const agentPublished = pub.published.filter((p) => p.kind === 'agent');
   assert.equal(agentPublished.length, 2);
+});
+
+test('passes topic and user-update images to runtime input options', async () => {
+  const cfg = makeConfig({ maxTurnsSinceUser: 1 });
+  const seenAttachments = [];
+  const rt = makeRuntime(async ({ prompt, options }) => {
+    seenAttachments.push(options.attachments);
+    assert.match(prompt, /available as visual input/);
+    return { content: 'done', provider: 't', threadId: '' };
+  });
+  const pub = makePublisher();
+  const sched = new A2AScheduler({
+    store: makeStore(),
+    contextProvider: {
+      readTopic: async () => ({
+        text: 'ctx [image]',
+        attachments: [{ kind: 'image', messageId: 'mid-ctx', fileKey: 'img-ctx', localPath: '/tmp/ctx.png', mimeType: 'image/png' }],
+      }),
+    },
+    runtime: rt,
+    publisher: pub,
+    config: cfg,
+    logger: noopLogger(),
+    messages,
+  });
+
+  await sched.handleUserMessage(record({
+    text: '[image]',
+    attachments: [{ kind: 'image', messageId: 'mid-1', fileKey: 'img-user', localPath: '/tmp/user.png', mimeType: 'image/png' }],
+  }));
+  assert.equal(seenAttachments.length, 1);
+  assert.equal(seenAttachments[0].length, 2);
+  assert.deepEqual(seenAttachments[0].map((item) => item.fileKey), ['img-ctx', 'img-user']);
 });
 
 test('maxTurnsSinceUser stops the loop', async () => {

@@ -4,6 +4,7 @@ import { createLogger } from './logger.js';
 import { createMessages } from './protocol/messages.js';
 import { ThreadContextStore } from './store/thread-context-store.js';
 import { FeishuClientPool } from './feishu/client.js';
+import { FeishuAttachmentDownloader } from './feishu/attachment-downloader.js';
 import { FeishuTopicContextProvider } from './feishu/context-provider.js';
 import { FeishuPublisher } from './feishu/publisher.js';
 import { FeishuIngress } from './feishu/ingress.js';
@@ -27,7 +28,13 @@ const clients = new FeishuClientPool({
   domain: config.feishuDomain,
   pageSizeCap: config.feishuPageSizeCap,
 });
-const contextProvider = new FeishuTopicContextProvider({ clients, config, logger });
+const attachmentDownloader = new FeishuAttachmentDownloader({ clients, config, logger });
+const contextProvider = new FeishuTopicContextProvider({
+  clients,
+  attachmentDownloader,
+  config,
+  logger,
+});
 const runtime = new AgentRuntimeManager({ config, logger });
 const publisher = new FeishuPublisher({
   clients,
@@ -44,7 +51,7 @@ const publisher = new FeishuPublisher({
   streamTextMinChars: config.feishuStreamTextMinChars,
 });
 const scheduler = new A2AScheduler({ store, contextProvider, runtime, publisher, config, logger, messages });
-const ingress = new FeishuIngress({ clients, scheduler, config, logger });
+const ingress = new FeishuIngress({ clients, attachmentDownloader, scheduler, config, logger });
 
 startHttpServer({ host: config.host, port: config.port, logger, scheduler });
 startFeishuReceiver({

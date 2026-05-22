@@ -98,7 +98,7 @@ For each agent (`claude-code`, `codex`):
      only event A2A subscribes to.
 5. Open **权限管理** (Permissions) and enable the scopes in
    [docs/PERMISSIONS.md](./PERMISSIONS.md). The minimal set is:
-   - `im:message`
+   - `im:message` *(read messages, resolve threads, download incoming image resources)*
    - `im:message.group_msg` / `im:message:send_as_bot` *(console naming varies)*
    - `contact:user.base:readonly` *(optional — see permissions doc)*
    - `cardkit:card:write` *(only if `A2A_FEISHU_STREAMING=true`)*
@@ -230,6 +230,9 @@ See `deploy/a2a.env.example` for the full list. Common ones:
 - `A2A_MAX_TURNS_SINCE_USER=20` — raise the auto-debate ceiling.
 - `A2A_LOG_FORMAT=json` — structured logs for ingestion.
 - `A2A_SESSION_TIMEOUT_MS=14400000` — hard 4-hour session ceiling.
+- `A2A_ATTACHMENTS_ENABLED=false` — disable image downloads; agents will see
+  `[image]` text placeholders only.
+- `A2A_ATTACHMENT_MAX_BYTES=26214400` — per-image download limit.
 
 ## Troubleshooting
 
@@ -240,5 +243,6 @@ See `deploy/a2a.env.example` for the full list. Common ones:
 | `code=99991672 / app permission denied` | Required scope missing; re-check `docs/PERMISSIONS.md`. |
 | Card looks plain / no header colour | Set `A2A_FEISHU_CARD=true` (default) and confirm `replyMessage` calls aren't being downgraded by an upstream proxy. |
 | Streaming card creation fails | Enable `cardkit:card:write`, publish a new app version, then run `npm run doctor -- --online --streaming`. |
+| Agents only see `[image]` | Confirm `A2A_ATTACHMENTS_ENABLED=true`, the app has `im:message`, the bot is in the chat, and the image is below `A2A_ATTACHMENT_MAX_BYTES`. |
 | Reply works but doctor cannot delete the probe | Optional cleanup scope `im:message:recall` is missing. Runtime still works; empty/overflow streaming cards may remain visible. |
 | Repeated `WS disconnected ... giving up` | Network blocks `wss://lark-event-ws.feishu.cn`. Run from a host that can reach Feishu's WS endpoint. |

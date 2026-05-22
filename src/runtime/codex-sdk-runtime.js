@@ -8,6 +8,7 @@ import {
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parseAgentOutput } from '../protocol/agent-output.js';
+import { usableImageAttachments } from '../feishu/attachment-downloader.js';
 
 const DEFAULT_SSE_ERROR_LOG = join(homedir(), '.codex', 'modelhub-proxy', 'sse-errors.log');
 const SSE_ERROR_LOG_TAIL_BYTES = 512 * 1024;
@@ -19,7 +20,7 @@ export class CodexSdkRuntime {
     this.client = null;
   }
 
-  async runTurn({ bot, prompt, state, signal, stream }) {
+  async runTurn({ bot, prompt, attachments, state, signal, stream }) {
     const { Codex } = await import('@openai/codex-sdk');
     if (!this.client) {
       this.client = new Codex({
@@ -44,9 +45,10 @@ export class CodexSdkRuntime {
       ? this.client.resumeThread(state.threadId, options)
       : this.client.startThread(options);
     let threadId = thread.id || state.threadId || '';
+    const input = buildCodexInput(prompt, attachments);
 
     if (stream && typeof thread.runStreamed === 'function') {
-      const streamed = await thread.runStreamed(prompt, { signal });
+      const streamed = await thread.runStreamed(input, { signal });
       let finalResponse = '';
       let usage = null;
       try {
@@ -83,7 +85,7 @@ export class CodexSdkRuntime {
 
     let turn;
     try {
-      turn = await thread.run(prompt, { signal });
+      turn = await thread.run(input, { signal });
     } catch (err) {
       throw enrichCodexError(err, { threadId: thread.id || threadId, logPath: this.config.codex.sseErrorLogPath });
     }
@@ -95,6 +97,15 @@ export class CodexSdkRuntime {
       usage: turn.usage || null,
     };
   }
+}
+
+export function buildCodexInput(prompt, attachments = []) {
+  const images = usableImageAttachments(attachments);
+  if (images.length === 0) return prompt;
+  return [
+    { type: 'text', text: prompt },
+    ...images.map((image) => ({ type: 'local_image', path: image.localPath })),
+  ];
 }
 
 function makeCodexError(error, fallbackMessage) {

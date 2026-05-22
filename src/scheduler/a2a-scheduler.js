@@ -64,8 +64,14 @@ export class A2AScheduler {
   }
 
   async start(record) {
-    const initialContext = await this.contextProvider.readTopic(record.appId, record.chatId, record.rootMessageId);
-    const session = this.store.createSession({ ...record, triggerMode: 'auto' }, initialContext);
+    const topic = normalizeTopic(await this.contextProvider.readTopic(record.appId, record.chatId, record.rootMessageId));
+    const session = this.store.createSession({
+      ...record,
+      triggerMode: 'auto',
+      initialAttachments: topic.attachments,
+    }, topic.text);
+    session.initialAttachments = topic.attachments;
+    this.store.persistSession(session);
     this.logger.info(`session started id=${session.id} root=${session.rootMessageId} chat=${session.chatId}`);
     if (this.config.publishSystemLifecycle) {
       await this.publisher.publishSystem(session, this.messages.render('lifecycle.start', { sessionId: session.id }));
@@ -139,11 +145,14 @@ export class A2AScheduler {
     const state = this.runtime.stateFor(session, cliId);
     const includeFullContext = !state.fullContextSent || !state.threadId;
     if (includeFullContext && !session.initialContext) {
-      session.initialContext = await this.contextProvider.readTopic(session.appId || this.publisher.firstAgent().larkAppId, session.chatId, session.rootMessageId);
+      const topic = normalizeTopic(await this.contextProvider.readTopic(session.appId || this.publisher.firstAgent().larkAppId, session.chatId, session.rootMessageId));
+      session.initialContext = topic.text;
+      session.initialAttachments = topic.attachments;
     }
 
     const transcriptStart = includeFullContext ? 0 : state.transcriptDelivered;
     const userUpdatesStart = state.userUpdatesDelivered;
+    const userUpdates = (session.userUpdates || []).slice(userUpdatesStart);
     const turnInput = {
       includeFullContext,
       topicContext: session.initialContext,
@@ -151,9 +160,14 @@ export class A2AScheduler {
         .slice(transcriptStart)
         .filter((item) => item.text?.trim())
         .filter((item) => includeFullContext || item.speaker !== cliId),
-      userUpdates: (session.userUpdates || []).slice(userUpdatesStart),
+      userUpdates,
       userUpdatesEnd: (session.userUpdates || []).length,
     };
+    const attachments = collectTurnAttachments({
+      includeFullContext,
+      initialAttachments: session.initialAttachments,
+      userUpdates,
+    });
 
     const round = session.round;
     session.waitingFor = { cliId, round };
@@ -171,12 +185,12 @@ export class A2AScheduler {
       messages: this.messages,
     });
 
-    this.logger.info(`agent turn start session=${session.id} cli=${cliId} round=${round} fullContext=${includeFullContext} transcriptDelta=${turnInput.transcript.length} userDelta=${turnInput.userUpdates.length}`);
+    this.logger.info(`agent turn start session=${session.id} cli=${cliId} round=${round} fullContext=${includeFullContext} transcriptDelta=${turnInput.transcript.length} userDelta=${turnInput.userUpdates.length} images=${attachments.filter((item) => item?.kind === 'image' && item.localPath).length}`);
     const turnStartedAt = Date.now();
     let result;
     try {
       const beginAttempt = () => this.publisher.beginAgentTurn?.(session, cliId, round);
-      result = await this.runtime.runTurn(session, cliId, prompt, { beginAttempt });
+      result = await this.runtime.runTurn(session, cliId, prompt, { beginAttempt, attachments });
     } catch (err) {
       this.logger.error(`agent turn failed session=${session.id} cli=${cliId}:`, err);
       session.waitingFor = null;
@@ -243,4 +257,29 @@ export class A2AScheduler {
     this.store.persistSession(session);
     await this.routeNext(session, peerCliId);
   }
+}
+
+function normalizeTopic(topic) {
+  if (typeof topic === 'string') return { text: topic, attachments: [] };
+  return {
+    text: topic?.text || '',
+    attachments: Array.isArray(topic?.attachments) ? topic.attachments : [],
+  };
+}
+
+function collectTurnAttachments({ includeFullContext, initialAttachments, userUpdates }) {
+  const candidates = [
+    ...(includeFullContext && Array.isArray(initialAttachments) ? initialAttachments : []),
+    ...(Array.isArray(userUpdates) ? userUpdates.flatMap((item) => item.attachments || []) : []),
+  ];
+  const seen = new Set();
+  const result = [];
+  for (const item of candidates) {
+    if (!item || typeof item !== 'object') continue;
+    const key = item.localPath || `${item.messageId || ''}:${item.fileKey || ''}:${item.kind || ''}`;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
 }

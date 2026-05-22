@@ -8,20 +8,21 @@ A2A actually does before granting scopes to the apps.
 
 A2A touches three Feishu Open Platform namespaces:
 
-- `im.v1` — message read/reply/delete.
+- `im.v1` — message read/reply/delete and message-resource download.
 - `contact.v3` — optional sender display-name lookup.
 - `cardkit.v1` — optional streaming-card create/update APIs.
 
 | API call | File:line | Scope required | Purpose |
 |---|---|---|---|
-| `client.im.v1.message.reply` | `src/feishu/client.js:30` | `im:message.group_msg` / `im:message:send_as_bot` | Post the agent's text or interactive card reply into the same Feishu thread. Feishu/Lark tenant consoles vary in how they label bot-send scopes; grant the bot-send/group-message permission shown by your tenant. |
-| `client.im.v1.message.delete` | `src/feishu/client.js:48` | `im:message:recall` | Optional cleanup: delete A2A's own empty/overflow streaming cards and explicit `doctor --reply-test` probe messages. Runtime degrades by leaving the message in place if this is absent. |
-| `client.cardkit.v1.card.create` | `src/feishu/client.js:59` | `cardkit:card:write` | Create the backing CardKit card used for live streaming output. Required only when `A2A_FEISHU_STREAMING=true`. |
-| `client.cardkit.v1.cardElement.content` | `src/feishu/client.js:73` | `cardkit:card:write` | Stream text/thinking deltas into individual card elements. Required only when `A2A_FEISHU_STREAMING=true`. |
-| `client.cardkit.v1.card.update` | `src/feishu/client.js:85` | `cardkit:card:write` | Replace the temporary streaming card with the final card. Required only when `A2A_FEISHU_STREAMING=true`. |
-| `client.im.v1.message.get` | `src/feishu/client.js:110` | `im:message` | Resolve the root message's `thread_id` so we can list by thread instead of chat. |
-| `client.im.v1.message.list` | `src/feishu/client.js:120` | `im:message` | Page messages by container (`thread` if available, else `chat`) to assemble the topic context the agents see at first turn. |
-| `client.contact.v3.user.get` | `src/feishu/client.js:142` | `contact:user.base:readonly` | Look up a user's display name (`open_id` mode) so logs and prompts say `Alice (user:open_...)` instead of just `user:open_...`. Failures are swallowed; without this scope, A2A still works and sender labels degrade to raw open IDs. |
+| `client.im.v1.message.reply` | `src/feishu/client.js:32` | `im:message.group_msg` / `im:message:send_as_bot` | Post the agent's text or interactive card reply into the same Feishu thread. Feishu/Lark tenant consoles vary in how they label bot-send scopes; grant the bot-send/group-message permission shown by your tenant. |
+| `client.im.v1.message.delete` | `src/feishu/client.js:50` | `im:message:recall` | Optional cleanup: delete A2A's own empty/overflow streaming cards and explicit `doctor --reply-test` probe messages. Runtime degrades by leaving the message in place if this is absent. |
+| `client.cardkit.v1.card.create` | `src/feishu/client.js:61` | `cardkit:card:write` | Create the backing CardKit card used for live streaming output. Required only when `A2A_FEISHU_STREAMING=true`. |
+| `client.cardkit.v1.cardElement.content` | `src/feishu/client.js:75` | `cardkit:card:write` | Stream text/thinking deltas into individual card elements. Required only when `A2A_FEISHU_STREAMING=true`. |
+| `client.cardkit.v1.card.update` | `src/feishu/client.js:87` | `cardkit:card:write` | Replace the temporary streaming card with the final card. Required only when `A2A_FEISHU_STREAMING=true`. |
+| `client.im.v1.message.get` | `src/feishu/client.js:121` | `im:message` | Resolve the root message's `thread_id` so we can list by thread instead of chat. |
+| `client.im.v1.message.list` | `src/feishu/client.js:133` | `im:message` | Page messages by container (`thread` if available, else `chat`) to assemble the topic context the agents see at first turn. |
+| `client.im.v1.messageResource.get` | `src/feishu/client.js:112` | `im:message` | Download image resources from incoming messages so agent runtimes receive real image input. The bot must be in the same chat as the message. |
+| `client.contact.v3.user.get` | `src/feishu/client.js:158` | `contact:user.base:readonly` | Look up a user's display name (`open_id` mode) so logs and prompts say `Alice (user:open_...)` instead of just `user:open_...`. Failures are swallowed; without this scope, A2A still works and sender labels degrade to raw open IDs. |
 
 ## Permission sets
 
@@ -72,6 +73,7 @@ A2A persists state under `$A2A_HOME` (default `~/.a2a`). All files are JSON.
 | `~/.a2a/state/sessions.json` | Running sessions only (id, root msg, transcript so far). Deleted entries finalise into `sections.json`. |
 | `~/.a2a/state/sections.json` | Per-thread metadata kept across restarts so resumed agents can reuse `threadId`. |
 | `~/.a2a/state/seen-messages.json` | Message dedup ring (capped at 5000 IDs). |
+| `~/.a2a/attachments/` | Cached image resources downloaded from configured chats. Disable with `A2A_ATTACHMENTS_ENABLED=false` or move with `A2A_ATTACHMENTS_DIR`. |
 | `~/.a2a/logs/a2a.log` | Text log mirror of journal output. |
 
 No state is sent to any service other than the Feishu APIs listed above and the

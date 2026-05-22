@@ -63,7 +63,7 @@ export class AgentRuntimeManager {
     return state;
   }
 
-  async runTurn(session, cliId, prompt, { beginAttempt } = {}) {
+  async runTurn(session, cliId, prompt, { beginAttempt, attachments = [] } = {}) {
     const runtime = this.runtimes.get(cliId);
     if (!runtime) throw new Error(`no runtime registered for ${cliId}`);
     const state = this.stateFor(session, cliId);
@@ -76,7 +76,7 @@ export class AgentRuntimeManager {
       onRetry: ({ attempt, totalAttempts, delayMs, err }) => {
         this.logger.warn(`agent turn retry session=${session.id} cli=${cliId} attempt=${attempt}/${totalAttempts} delay=${delayMs}ms err=${err?.message || err}`);
       },
-      fn: () => this.runTurnOnce({ session, cliId, prompt, runtime, state, beginAttempt }),
+      fn: () => this.runTurnOnce({ session, cliId, prompt, attachments, runtime, state, beginAttempt }),
     });
 
     if (result.threadId) state.threadId = result.threadId;
@@ -84,7 +84,7 @@ export class AgentRuntimeManager {
     return result;
   }
 
-  async runTurnOnce({ session, cliId, prompt, runtime, state, beginAttempt }) {
+  async runTurnOnce({ session, cliId, prompt, attachments, runtime, state, beginAttempt }) {
     const controller = new AbortController();
     const timeoutMs = this.config.turnTimeoutMs;
     const timer = setTimeout(() => controller.abort(new Error(`turn timed out after ${timeoutMs}ms`)), timeoutMs);
@@ -101,6 +101,7 @@ export class AgentRuntimeManager {
       const result = await runtime.runTurn({
         bot: this.bot(cliId),
         prompt,
+        attachments,
         state,
         session,
         cliId,

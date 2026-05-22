@@ -4,8 +4,10 @@
 flowchart LR
   Feishu["Feishu Topic"] --> Receiver["Feishu WS Receiver"]
   Receiver --> Ingress["Feishu Ingress"]
+  Ingress --> Attachments["Attachment Downloader"]
   Ingress --> Scheduler["A2A Scheduler"]
   Scheduler <--> Store["Thread Context Store"]
+  Attachments --> Scheduler
   Scheduler --> Runtime["Agent Runtime Manager"]
   Runtime --> Claude["Claude Agent SDK"]
   Runtime --> Codex["Codex SDK"]
@@ -17,7 +19,8 @@ flowchart LR
 ## Responsibilities
 
 - **Receiver** (`src/feishu/receiver.js`): WS connection per receiver bot. Filters non-owned chats and bot-sent messages before handing the event off. Counts reconnect attempts and `process.exit(1)` once they exceed `A2A_WS_RECONNECT_GIVEUP` so systemd can rebuild the connection.
-- **Ingress** (`src/feishu/ingress.js`): normalises a Feishu event into a `record` (root id, sender label, text, timestamps) and queues it on the scheduler.
+- **Ingress** (`src/feishu/ingress.js`): normalises a Feishu event into a `record` (root id, sender label, text, timestamps, attachments) and queues it on the scheduler.
+- **Attachment Downloader** (`src/feishu/attachment-downloader.js`): downloads supported image resources from Feishu messages into `$A2A_HOME/attachments`, enforces image count/byte limits, and hands local image files to the agent runtimes.
 - **Scheduler** (`src/scheduler/a2a-scheduler.js`): owns protocol state — session lifecycle, turn order, dedupe, `quietStreak`, `turnsSinceUser` cap, session-wide timeout, `/a2a stop|status` commands. Knows nothing about Feishu APIs or SDK internals.
 - **Runtime Manager** (`src/runtime/agent-runtime-manager.js`): single facade in front of the Claude Agent SDK and Codex SDK runtimes. Owns per-agent state (`threadId`, `fullContextSent`, transcript / userUpdates cursors), per-turn timeout (`turnTimeoutMs`), and retry/backoff (`runtime/retry.js`).
 - **Publisher** (`src/feishu/publisher.js`): posts agent and system messages back into the same Feishu thread with `reply_in_thread`. Skips empty agent content.
@@ -34,8 +37,9 @@ flowchart LR
   "rootMessageId": "om_...",
   "triggerMode": "auto",
   "initialContext": "<formatted thread text>",
+  "initialAttachments": [{ "kind": "image", "messageId": "om_...", "localPath": "$A2A_HOME/attachments/..." }],
   "userUpdates": [                    // every user message in this section, oldest first; the trigger is index 0
-    { "messageId": "om_...", "sender": "Alice (user:open_...)", "msgType": "text", "text": "...", "at": 1717000000000 }
+    { "messageId": "om_...", "sender": "Alice (user:open_...)", "msgType": "text", "text": "...", "attachments": [], "at": 1717000000000 }
   ],
   "transcript": [ { "speaker": "claude-code", "round": 1, "text": "...", "provider": "claude-agent-sdk", "at": 0 } ],
   "agentState": {

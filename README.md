@@ -45,7 +45,7 @@ default.
 
 | Scope | Why | Mandatory? |
 |---|---|---|
-| `im:message` | Read messages, resolve thread IDs | yes |
+| `im:message` | Read messages, resolve thread IDs, download image resources from messages | yes |
 | `im:message.group_msg` / `im:message:send_as_bot` | Post threaded replies as the bot. Feishu/Lark consoles may show one or both names depending on tenant/version. | yes |
 | `contact:user.base:readonly` | Resolve sender display names in logs/prompts | optional — degrades gracefully without it |
 | `cardkit:card:write` | Create/update CardKit cards for `A2A_FEISHU_STREAMING=true` | required only when streaming cards are enabled |
@@ -105,6 +105,10 @@ Slash commands that are not `/a2a …` are ignored.
 | `feishuPageSizeCap` | `A2A_FEISHU_PAGE_SIZE_CAP` | 50 | Max page size sent to Feishu `im.message.list` (Lark caps at 50) |
 | Codex SSE error log | `A2A_CODEX_SSE_ERROR_LOG` | `~/.codex/modelhub-proxy/sse-errors.log` | Local Codex backend diagnostics used to surface real `response.failed` reasons |
 | `seenMessageLimit` | `A2A_SEEN_MESSAGE_LIMIT` | 5000 | De-dup ring for incoming Feishu message IDs |
+| `attachmentsEnabled` | `A2A_ATTACHMENTS_ENABLED` | true | Download Feishu image resources so Claude/Codex receive real visual input instead of `[image]` placeholders |
+| `attachmentsDir` | `A2A_ATTACHMENTS_DIR` | `~/.a2a/attachments` | Local cache for downloaded message images |
+| `attachmentImageLimit` | `A2A_ATTACHMENT_IMAGE_LIMIT` | 12 | Max images attached to a single agent turn |
+| `attachmentMaxBytes` | `A2A_ATTACHMENT_MAX_BYTES` | 26214400 | Max bytes per downloaded image |
 | Admin HTTP bind | `A2A_EVENT_HOST` / `A2A_EVENT_PORT` | 127.0.0.1 / 39876 | Where the admin server listens (host-only, no auth) |
 | WS reconnect cap | `A2A_WS_RECONNECT_GIVEUP` / `_MS` | 10 / 300000 | Exit (supervisor restarts) if WS gives up |
 | Log format / level | `A2A_LOG_FORMAT` / `A2A_LOG_LEVEL` | text / info | `json` for structured logs |
@@ -130,6 +134,7 @@ Convenience wrapper: `scripts/a2a-admin.sh list | stop <sessionId> [reason] | he
 - `~/.a2a/state/sessions.json` — only `running` sessions; finished ones move to `sections.json`.
 - `~/.a2a/state/sections.json` — per-thread metadata kept across restarts so resumed agents can reuse `threadId`.
 - `~/.a2a/state/seen-messages.json` — message dedup ring (capped at 5000 IDs).
+- `~/.a2a/attachments/` — local cache of Feishu image resources attached to agent turns.
 - `~/.a2a/logs/a2a.log` — text log mirror of journal output.
 
 ## Localizing prompts and lifecycle messages

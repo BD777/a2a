@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { parseAgentOutput } from '../protocol/agent-output.js';
+import { usableImageAttachments } from '../feishu/attachment-downloader.js';
 import { readEnvProfile } from './env-profile.js';
 
 export class ClaudeAgentRuntime {
@@ -7,7 +9,7 @@ export class ClaudeAgentRuntime {
     this.logger = logger;
   }
 
-  async runTurn({ bot, prompt, state, signal, stream }) {
+  async runTurn({ bot, prompt, attachments, state, signal, stream }) {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');
     const options = {
       cwd: bot.workingDir || this.config.projectDir,
@@ -30,7 +32,7 @@ export class ClaudeAgentRuntime {
     let sessionId = state.threadId || '';
     const seenToolUses = new Set();
     const seenToolResults = new Set();
-    const conversation = query({ prompt, options });
+    const conversation = query({ prompt: buildClaudePrompt(prompt, attachments), options });
     const abort = () => conversation.close();
     if (signal?.aborted) abort();
     signal?.addEventListener('abort', abort, { once: true });
@@ -95,6 +97,36 @@ export class ClaudeAgentRuntime {
       usage: resultMessage.usage || null,
     };
   }
+}
+
+export function buildClaudePrompt(prompt, attachments = []) {
+  const content = buildClaudeContent(prompt, attachments);
+  if (typeof content === 'string') return content;
+  return oneShotUserMessage(content);
+}
+
+export function buildClaudeContent(prompt, attachments = []) {
+  const images = usableImageAttachments(attachments);
+  if (images.length === 0) return prompt;
+  return [
+    { type: 'text', text: prompt },
+    ...images.map((image) => ({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: image.mimeType,
+        data: readFileSync(image.localPath).toString('base64'),
+      },
+    })),
+  ];
+}
+
+async function* oneShotUserMessage(content) {
+  yield {
+    type: 'user',
+    message: { role: 'user', content },
+    parent_tool_use_id: null,
+  };
 }
 
 function formatClaudeToolUse(block) {

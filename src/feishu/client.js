@@ -109,6 +109,13 @@ export class FeishuClientPool {
       .sort((a, b) => String(a.create_time || '').localeCompare(String(b.create_time || '')));
   }
 
+  async getMessageResource(appId, { messageId, fileKey, type }) {
+    return this.client(appId).im.v1.messageResource.get({
+      path: { message_id: messageId, file_key: fileKey },
+      params: { type },
+    });
+  }
+
   async resolveThreadId(client, rootMessageId) {
     try {
       const res = await client.im.v1.message.get({ path: { message_id: rootMessageId } });

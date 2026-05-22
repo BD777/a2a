@@ -12,7 +12,7 @@
     {
       "name": "@larksuiteoapi/node-sdk",
       "version": "1.65.0",
-      "why": "Feishu/Lark REST APIs and Long Connection WebSocket receiver"
+      "why": "Feishu/Lark REST APIs, message-resource downloads, and Long Connection WebSocket receiver"
     },
     {
       "name": "@openai/codex-sdk",
@@ -81,7 +81,7 @@
       "required": true,
       "hosts": ["open.feishu.cn", "open.larksuite.com"],
       "configuredBy": ["A2A_FEISHU_DOMAIN"],
-      "why": "Validate app credentials and call IM/CardKit/Contact APIs"
+      "why": "Validate app credentials and call IM message/resource, CardKit, and Contact APIs"
     },
     {
       "name": "Feishu/Lark Long Connection WebSocket",
@@ -106,7 +106,7 @@
     "apps": 2,
     "event": "im.message.receive_v1",
     "requiredScopes": [
-      "im:message",
+      "im:message (read messages, resolve thread IDs, download message image resources)",
       "im:message.group_msg or im:message:send_as_bot"
     ],
     "conditionalScopes": [

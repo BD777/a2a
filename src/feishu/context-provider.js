@@ -1,8 +1,9 @@
 import { formatTopicMessages, parseApiMessage } from './message-parser.js';
 
 export class FeishuTopicContextProvider {
-  constructor({ clients, config, logger }) {
+  constructor({ clients, attachmentDownloader, config, logger }) {
     this.clients = clients;
+    this.attachmentDownloader = attachmentDownloader;
     this.config = config;
     this.logger = logger;
   }
@@ -11,6 +12,9 @@ export class FeishuTopicContextProvider {
     try {
       const raw = await this.clients.listThreadMessages(appId, chatId, rootMessageId, this.config.topicContextLimit);
       const parsed = raw.map((message) => parseApiMessage(message));
+      for (const message of parsed) {
+        message.attachments = await this.resolveAttachments(appId, message.attachments);
+      }
       const labels = new Map();
       for (const message of parsed) {
         const sender = message.sender || {};
@@ -19,19 +23,27 @@ export class FeishuTopicContextProvider {
         const key = `${senderType}:${senderId}`;
         if (!labels.has(key)) labels.set(key, await this.clients.senderLabel(appId, senderType, senderId));
       }
-      return formatTopicMessages(parsed, {
-        timeZone: this.config.timeZone,
-        messageCharLimit: this.config.messageCharLimit,
-        senderLabel: (message) => {
-          const sender = message.sender || {};
-          const senderType = sender.sender_type || sender.type || 'unknown';
-          const senderId = sender.id || sender.sender_id?.open_id || '';
-          return labels.get(`${senderType}:${senderId}`) || `${senderType}:${senderId || 'unknown'}`;
-        },
-      });
+      return {
+        text: formatTopicMessages(parsed, {
+          timeZone: this.config.timeZone,
+          messageCharLimit: this.config.messageCharLimit,
+          senderLabel: (message) => {
+            const sender = message.sender || {};
+            const senderType = sender.sender_type || sender.type || 'unknown';
+            const senderId = sender.id || sender.sender_id?.open_id || '';
+            return labels.get(`${senderType}:${senderId}`) || `${senderType}:${senderId || 'unknown'}`;
+          },
+        }),
+        attachments: parsed.flatMap((message) => message.attachments || []),
+      };
     } catch (err) {
       this.logger.warn('Feishu topic context read skipped:', err?.message || err);
-      return '';
+      return { text: '', attachments: [] };
     }
+  }
+
+  async resolveAttachments(appId, attachments) {
+    if (!this.attachmentDownloader) return attachments || [];
+    return this.attachmentDownloader.resolve(appId, attachments);
   }
 }
